@@ -11,6 +11,11 @@ const readJSON = path => {
     }
 }
 
+const getTSConfigPaths = context => {
+    const config = readJSON(join(context.cwd, "tsconfig.json"))
+    return config?.compilerOptions?.paths ?? null
+}
+
 const getImportStatement = node => {
     if (node.type === "ImportDeclaration") {
         // Pure ESM
@@ -58,37 +63,44 @@ const getImportStatement = node => {
     return false
 }
 
+const getOwnDomain = (context, paths) => {
+    const ownPath = relative(context.cwd, context.getFilename())
+    return Object.keys(paths).find(k => {
+        const path = relative(context.cwd, paths[k][0].replace("/*", ""))
+        return ownPath.startsWith(path)
+    })?.replace("/*", "")
+}
+
+const getImportDomain = (importPath, paths) => {
+    const pathKeys = Object.keys(paths).map(k => k.replace("/*", ""))
+        .filter(k => k !== "*" && k.startsWith("@"))
+    return pathKeys.find(k => importPath.startsWith(k))
+        ?? Object.keys(paths).find(k => {
+            let loc = paths[k][0].replace("/*", "")
+            if (importPath.startsWith(loc)) {
+                return true
+            }
+            if (loc.startsWith("./src/")) {
+                loc = loc.replace("./src/", "./")
+                return importPath.startsWith(loc)
+            }
+            return false
+        })?.replace("/*", "")
+}
+
 const importRule = {
     "create": context => ({":statement": node => {
         const [ignored] = context.options ?? []
-        const config = readJSON(join(context.cwd, "tsconfig.json"))
-        if (!config) {
+        const pathObj = getTSConfigPaths(context)
+        if (!pathObj) {
             return
         }
         const importPath = getImportStatement(node)
         if (!importPath) {
             return
         }
-        const pathObj = config.compilerOptions.paths
-        const paths = Object.keys(pathObj).map(key => key.replace("/*", ""))
-            .filter(key => key !== "*" && key.startsWith("@"))
-        const ownPath = relative(context.cwd, context.getFilename())
-        const ownDomain = Object.keys(pathObj).find(k => {
-            const path = relative(context.cwd, pathObj[k][0].replace("/*", ""))
-            return ownPath.startsWith(path)
-        })?.replace("/*", "")
-        const importDomain = paths.find(p => importPath.startsWith(p))
-            ?? Object.keys(pathObj).find(p => {
-                let loc = pathObj[p][0].replace("/*", "")
-                if (importPath.startsWith(loc)) {
-                    return true
-                }
-                if (loc.startsWith("./src/")) {
-                    loc = loc.replace("./src/", "./")
-                    return importPath.startsWith(loc)
-                }
-                return false
-            })?.replace("/*", "")
+        const ownDomain = getOwnDomain(context, pathObj)
+        const importDomain = getImportDomain(importPath, pathObj)
         if (importDomain && importDomain !== ownDomain
             && !ignored?.includes(importDomain)) {
             context.report({
