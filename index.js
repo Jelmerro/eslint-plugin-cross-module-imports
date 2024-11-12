@@ -79,7 +79,7 @@ const getOwnDomain = (context, paths) => {
 const getImportDomain = (importPath, paths) => {
     const pathKeys = Object.keys(paths).map(k => k.replace("/*", ""))
         .filter(k => k !== "*" && k.startsWith("@"))
-    return pathKeys.find(k => importPath.startsWith(k))
+    return pathKeys.find(k => importPath.startsWith(`${k}/`))
         ?? Object.keys(paths).find(k => {
             let loc = paths[k].replace("/*", "")
             if (importPath.startsWith(loc)) {
@@ -100,6 +100,12 @@ const importRule = {
         if (opts.useTSConfig) {
             paths = {...paths, ...getTSConfigPaths(context)}
         }
+        if (opts.domains) {
+            paths = {...paths, ...opts.domains}
+        }
+        if (!Object.keys(paths).length) {
+            return
+        }
         const importPath = getImportStatement(node)
         if (!importPath) {
             return
@@ -114,12 +120,17 @@ const importRule = {
             // Ignore if no domain is found for the file
             return
         }
+        if (opts.allowedCrossings?.[ownDomain]?.includes(importDomain)) {
+            // Ignore if the crossing is allowed
+            return
+        }
         if (importDomain && importDomain !== ownDomain) {
             // Report if the import of a domain and not part of this domain
             context.report({
                 "data": {
-                    "domain": ownDomain,
-                    "import": importPath
+                    "importdomain": importDomain,
+                    "importpath": importPath,
+                    "owndomain": ownDomain ?? "<none>"
                 },
                 "messageId": "import",
                 node
@@ -133,10 +144,34 @@ const importRule = {
             "url": "https://github.com/Jelmerro/eslint-plugin-cross-module-imports"
         },
         "messages": {
-            "import": "Import {{ import }} is outside {{ domain }}"
+            "import": "{{ importpath }} of {{ importdomain }} is outside {{ owndomain }}"
         },
         "schema": [{
             "properties": {
+                "allowedCrossings": {
+                    "patternProperties": {
+                        ".*": {
+                            "additionalItems": false,
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array",
+                            "uniqueItems": true
+                        }
+                    },
+                    "type": "object"
+                },
+                "domains": {
+                    "patternProperties": {
+                        ".*": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
                 "reportOutside": {
                     "default": true,
                     "type": "boolean"
