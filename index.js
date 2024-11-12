@@ -13,7 +13,12 @@ const readJSON = path => {
 
 const getTSConfigPaths = context => {
     const config = readJSON(join(context.cwd, "tsconfig.json"))
-    return config?.compilerOptions?.paths ?? null
+    const paths = {}
+    for (const key of Object.keys(config?.compilerOptions?.paths ?? {})) {
+        paths[key] = config.compilerOptions.paths[key]?.[0]
+            ?? config.compilerOptions.paths[key]
+    }
+    return paths
 }
 
 const getImportStatement = node => {
@@ -66,7 +71,7 @@ const getImportStatement = node => {
 const getOwnDomain = (context, paths) => {
     const ownPath = relative(context.cwd, context.getFilename())
     return Object.keys(paths).find(k => {
-        const path = relative(context.cwd, paths[k][0].replace("/*", ""))
+        const path = relative(context.cwd, paths[k].replace("/*", ""))
         return ownPath.startsWith(path)
     })?.replace("/*", "")
 }
@@ -76,7 +81,7 @@ const getImportDomain = (importPath, paths) => {
         .filter(k => k !== "*" && k.startsWith("@"))
     return pathKeys.find(k => importPath.startsWith(k))
         ?? Object.keys(paths).find(k => {
-            let loc = paths[k][0].replace("/*", "")
+            let loc = paths[k].replace("/*", "")
             if (importPath.startsWith(loc)) {
                 return true
             }
@@ -91,16 +96,16 @@ const getImportDomain = (importPath, paths) => {
 const importRule = {
     "create": context => ({":statement": node => {
         const opts = context.options?.[0] ?? {}
-        const pathObj = getTSConfigPaths(context)
-        if (!pathObj) {
-            return
+        let paths = {}
+        if (opts.useTSConfig) {
+            paths = {...paths, ...getTSConfigPaths(context)}
         }
         const importPath = getImportStatement(node)
         if (!importPath) {
             return
         }
-        const ownDomain = getOwnDomain(context, pathObj)
-        const importDomain = getImportDomain(importPath, pathObj)
+        const ownDomain = getOwnDomain(context, paths)
+        const importDomain = getImportDomain(importPath, paths)
         if (opts.shared?.includes(importDomain)) {
             // Ignore modules in the shared list from being reported
             return
@@ -112,6 +117,10 @@ const importRule = {
         if (importDomain && importDomain !== ownDomain) {
             // Report if the import of a domain and not part of this domain
             context.report({
+                "data": {
+                    "domain": ownDomain,
+                    "import": importPath
+                },
                 "messageId": "import",
                 node
             })
@@ -124,7 +133,7 @@ const importRule = {
             "url": "https://github.com/Jelmerro/eslint-plugin-cross-module-imports"
         },
         "messages": {
-            "import": "Module imports should not be outside their domain"
+            "import": "Import {{ import }} is outside {{ domain }}"
         },
         "schema": [{
             "properties": {
@@ -139,6 +148,10 @@ const importRule = {
                     },
                     "type": "array",
                     "uniqueItems": true
+                },
+                "useTSConfig": {
+                    "default": true,
+                    "type": "boolean"
                 }
             },
             "type": "object"
