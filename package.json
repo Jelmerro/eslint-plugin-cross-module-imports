@@ -1,0 +1,12 @@
+{
+    "name": "eslint-plugin-cross-module-imports",
+    "version": "0.1.0",
+    "description": "Find/prevent cross-module imports in your codebase",
+    "main": "index.js",
+    "repository": "https://github.com/Jelmerro/eslint-plugin-cross-module-imports",
+    "keywords": [
+        "eslint"
+    ],
+    "author": "Jelmer van Arnhem",
+    "license": "MIT"
+}
