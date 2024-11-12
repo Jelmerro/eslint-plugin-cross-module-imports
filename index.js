@@ -19,20 +19,20 @@ const getTSConfigPaths = context => {
 const getImportStatement = node => {
     if (node.type === "ImportDeclaration") {
         // Pure ESM
-        return node.source.value
+        return node.source?.value
     }
     if (node.type === "ExpressionStatement") {
         // Import function
         if (node.expression.type === "CallExpression"
             && node.expression.callee.type === "Identifier"
             && node.expression.callee.name === "import") {
-            return node.source.value
+            return node.source?.value
         }
         // Require function
         if (node.expression.type === "CallExpression"
             && node.expression.callee.type === "Identifier"
             && node.expression.callee.name === "require") {
-            return node.source.value
+            return node.source?.value
         }
     }
     if (node.type === "VariableDeclaration") {
@@ -41,14 +41,14 @@ const getImportStatement = node => {
             && d.init.type === "CallExpression"
             && d.init.callee.type === "Identifier"
             && d.init.callee.name === "require")) {
-            return node.source.value
+            return node.source?.value
         }
         // Import function to variable
         if (node.declarations.some(d => d.init
             && d.init.type === "CallExpression"
             && d.init.callee.type === "Identifier"
             && d.init.callee.name === "import")) {
-            return node.source.value
+            return node.source?.value
         }
         // Lazy loaders
         const lazyNames = ["lazy", "lazyWithRetry", "lazily", "lazilyWithRetry"]
@@ -90,7 +90,7 @@ const getImportDomain = (importPath, paths) => {
 
 const importRule = {
     "create": context => ({":statement": node => {
-        const [ignored] = context.options ?? []
+        const opts = context.options?.[0] ?? {}
         const pathObj = getTSConfigPaths(context)
         if (!pathObj) {
             return
@@ -101,8 +101,16 @@ const importRule = {
         }
         const ownDomain = getOwnDomain(context, pathObj)
         const importDomain = getImportDomain(importPath, pathObj)
-        if (importDomain && importDomain !== ownDomain
-            && !ignored?.includes(importDomain)) {
+        if (opts.shared?.includes(importDomain)) {
+            // Ignore modules in the shared list from being reported
+            return
+        }
+        if (!opts.reportOutside && !ownDomain) {
+            // Ignore if no domain is found for the file
+            return
+        }
+        if (importDomain && importDomain !== ownDomain) {
+            // Report if the import of a domain and not part of this domain
             context.report({
                 "messageId": "import",
                 node
@@ -119,12 +127,21 @@ const importRule = {
             "import": "Module imports should not be outside their domain"
         },
         "schema": [{
-            "additionalItems": false,
-            "items": {
-                "type": "string"
+            "properties": {
+                "reportOutside": {
+                    "default": true,
+                    "type": "boolean"
+                },
+                "shared": {
+                    "additionalItems": false,
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                }
             },
-            "type": "array",
-            "uniqueItems": true
+            "type": "object"
         }],
         "type": "problem"
     }
