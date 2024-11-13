@@ -128,9 +128,9 @@ const importRule = {
             // Report if the import of a domain and not part of this domain
             context.report({
                 "data": {
-                    "importdomain": importDomain,
-                    "importpath": importPath,
-                    "owndomain": ownDomain ?? "<none>"
+                    "imdomain": importDomain,
+                    "owndomain": ownDomain ?? "<none>",
+                    "path": importPath
                 },
                 "messageId": "import",
                 node
@@ -144,7 +144,7 @@ const importRule = {
             "url": "https://github.com/Jelmerro/eslint-plugin-cross-module-imports"
         },
         "messages": {
-            "import": "{{ importpath }} of {{ importdomain }} is outside {{ owndomain }}"
+            "import": "{{ path }} of {{ imdomain }} is outside {{ owndomain }}"
         },
         "schema": [{
             "properties": {
