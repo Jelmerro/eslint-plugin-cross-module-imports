@@ -98,6 +98,7 @@ To also allow importing from one other module to the other one-way, you can defi
 ```
 
 Finally, if you want to disable checking files outside modules for module imports,
+disable reporting type only import statements,
 or if you want to disable reading the TSConfig file for the paths,
 you can disable the `reportOutside` and `useTSConfig` options:
 
@@ -116,6 +117,7 @@ you can disable the `reportOutside` and `useTSConfig` options:
                     "@example": ["@example2"]
                 },
                 "reportOutside": false,
+                "reportTypes": false,
                 "useTSConfig": false
             }
         ]

@@ -21,23 +21,27 @@ const getTSConfigPaths = context => {
     return paths
 }
 
-const getImportStatement = node => {
+const getImportDetails = node => {
     if (node.type === "ImportDeclaration") {
         // Pure ESM
-        return node.source?.value
+        return {
+            "isType": node.importKind === "type", "path": node.source?.value
+        }
     }
     if (node.type === "ExpressionStatement") {
         // Import function
         if (node.expression.type === "CallExpression"
             && node.expression.callee.type === "Identifier"
             && node.expression.callee.name === "import") {
-            return node.source?.value
+            return {
+                "isType": node.importKind === "type", "path": node.source?.value
+            }
         }
         // Require function
         if (node.expression.type === "CallExpression"
             && node.expression.callee.type === "Identifier"
             && node.expression.callee.name === "require") {
-            return node.source?.value
+            return {"path": node.source?.value}
         }
     }
     if (node.type === "VariableDeclaration") {
@@ -46,14 +50,14 @@ const getImportStatement = node => {
             && d.init.type === "CallExpression"
             && d.init.callee.type === "Identifier"
             && d.init.callee.name === "require")) {
-            return node.source?.value
+            return {"path": node.source?.value}
         }
         // Import function to variable
         if (node.declarations.some(d => d.init
             && d.init.type === "CallExpression"
             && d.init.callee.type === "Identifier"
             && d.init.callee.name === "import")) {
-            return node.source?.value
+            return {"path": node.source?.value}
         }
         // Lazy loaders
         const lazyNames = ["lazy", "lazyWithRetry", "lazily", "lazilyWithRetry"]
@@ -63,7 +67,7 @@ const getImportStatement = node => {
             && lazyNames.includes(d.init.callee.name)
             && d.init.arguments.length > 0
             && d.init.arguments[0].body.type === "ImportExpression")
-        return dec?.init.arguments[0].body.source.value
+        return {"path": dec?.init.arguments[0].body.source.value}
     }
     return false
 }
@@ -106,7 +110,7 @@ const importRule = {
         if (!Object.keys(paths).length) {
             return
         }
-        const importPath = getImportStatement(node)
+        const {"path": importPath, isType} = getImportDetails(node) ?? {}
         if (!importPath) {
             return
         }
@@ -118,6 +122,10 @@ const importRule = {
         }
         if (!opts.reportOutside && !ownDomain) {
             // Ignore if no domain is found for the file
+            return
+        }
+        if (!opts.reportTypes && isType) {
+            // Ignore if the import is a type
             return
         }
         if (opts.allowedCrossings?.[ownDomain]?.includes(importDomain)) {
@@ -173,6 +181,10 @@ const importRule = {
                     "type": "object"
                 },
                 "reportOutside": {
+                    "default": true,
+                    "type": "boolean"
+                },
+                "reportTypes": {
                     "default": true,
                     "type": "boolean"
                 },
