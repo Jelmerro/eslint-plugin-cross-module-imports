@@ -3,9 +3,7 @@ eslint-plugin-cross-module-imports
 
 ### Find/prevent cross-module imports in your codebase
 
-# Installation
-
-`npm i -D git+https://github.com/Jelmerro/eslint-plugin-cross-module-imports.git`
+`npm i -D Jelmerro/eslint-plugin-cross-module-imports`
 
 Then add `cross-module-imports` to your Eslint config:
 
@@ -126,8 +124,3 @@ you can disable the `reportOutside` and `useTSConfig` options:
 ```
 
 For any of the examples you can change `error` to any other warning level like `warn`.
-
-# LICENSE
-
-This project is created by Jelmer van Arnhem and is licensed under the MIT License.
-Please see the [LICENSE](LICENSE) file for details.

@@ -73,7 +73,7 @@ const getImportDetails = node => {
 }
 
 const getOwnDomain = (context, paths) => {
-    const ownPath = relative(context.cwd, context.getFilename())
+    const ownPath = relative(context.cwd, context.filename)
     return Object.keys(paths).find(k => {
         const path = relative(context.cwd, paths[k].replace("/*", ""))
         return ownPath.startsWith(path)
